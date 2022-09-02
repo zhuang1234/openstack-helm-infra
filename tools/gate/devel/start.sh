@@ -64,10 +64,13 @@ function ansible_install {
 
 if [ "x${DEPLOY}" == "xsetup-host" ]; then
   ansible_install
-  PLAYBOOKS="osh-infra-deploy-docker"
-elif [ "x${DEPLOY}" == "xk8s" ]; then
   ${WORK_DIR}/tools/deployment/common/000-install-packages.sh
+  PLAYBOOKS="osh-infra-deploy-docker"
+elif [ "x${DEPLOY}" == "xminik8s" ]; then
   ${WORK_DIR}/tools/gate/deploy-k8s.sh
+  exit 0
+elif [ "x${DEPLOY}" == "xk8s" || "x${DEPLOY}" == "xk8s-kubeadm"  ]; then
+  ${WORK_DIR}/tools/gate/deploy-k8s-kubeadm.sh
   exit 0
 elif [ "x${DEPLOY}" == "xlogs" ]; then
   PLAYBOOKS="osh-infra-collect-logs"

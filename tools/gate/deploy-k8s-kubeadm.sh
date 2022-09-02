@@ -37,9 +37,9 @@ function configure_resolvconf {
 
   # Add kube-dns ip to /etc/resolv.conf for local usage
   sudo bash -c "echo 'nameserver ${kube_dns_ip}' > /etc/resolv.conf"
-  if [ -z "${HTTP_PROXY}" ]; then
-    sudo bash -c "printf 'nameserver 8.8.8.8\nnameserver 8.8.4.4\n' > /run/systemd/resolve/resolv.conf"
-    sudo bash -c "printf 'nameserver 8.8.8.8\nnameserver 8.8.4.4\n' >> /etc/resolv.conf"
+  if [ -z "${HTTPS_PROXY}" ]; then
+    sudo bash -c "printf 'nameserver 8.8.8.8\nnameserver 233.5.5.5\n' > /run/systemd/resolve/resolv.conf"
+    sudo bash -c "printf 'nameserver 8.8.8.8\nnameserver 233.5.5.5\n' >> /etc/resolv.conf"
   else
     sudo bash -c "echo \"${old_ns}\" > /run/systemd/resolve/resolv.conf"
     sudo bash -c "echo \"${old_ns}\" >> /etc/resolv.conf"
@@ -61,10 +61,18 @@ configure_resolvconf
 . /etc/os-release
 
 # NOTE: Add docker repo
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+# curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+# sudo apt-key fingerprint 0EBFCD88
+# sudo add-apt-repository \
+#   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+#   $(lsb_release -cs) \
+#   stable"
+
+# NOTE: Add aliyun docker repo
+curl -fsSL https://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg | sudo apt-key add -
 sudo apt-key fingerprint 0EBFCD88
 sudo add-apt-repository \
-  "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+  "deb [arch=amd64] https://mirrors.aliyun.com/docker-ce/linux/ubuntu \
   $(lsb_release -cs) \
   stable"
 
@@ -86,11 +94,11 @@ sudo -E tee /etc/docker/daemon.json <<EOF
 }
 EOF
 
-if [ -n "${HTTP_PROXY}" ]; then
+if [ -n "${HTTPS_PROXY}" ]; then
   sudo mkdir -p /etc/systemd/system/docker.service.d
   cat <<EOF | sudo -E tee /etc/systemd/system/docker.service.d/http-proxy.conf
 [Service]
-Environment="HTTP_PROXY=${HTTP_PROXY}"
+# Environment="HTTP_PROXY=${HTTP_PROXY}"
 Environment="HTTPS_PROXY=${HTTPS_PROXY}"
 Environment="NO_PROXY=${NO_PROXY}"
 EOF
@@ -112,6 +120,7 @@ sudo -E apt-get install -y \
   make \
   bc \
   git-review \
+  apt-transport-https \
   notary
 
 # Prepare tmpfs for etcd when running on CI
@@ -128,7 +137,13 @@ wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_am
 
 # Install kubeadm kubectl and kublet
 
-echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+# echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+# use aliyum 
+curl https://mirrors.aliyun.com/kubernetes/apt/doc/apt-key.gpg | sudo apt-key add - 
+sudo -E tee /etc/apt/sources.list.d/kubernetes.list <<EOF
+deb https://mirrors.aliyun.com/kubernetes/apt/ kubernetes-xenial main
+EOF
+
 sudo apt-get update
 sudo apt-get install -y kubelet=$KUBE_VERSION kubeadm=$KUBE_VERSION kubectl=$KUBE_VERSION
 sudo apt-mark hold kubelet kubeadm kubectl
@@ -142,7 +157,7 @@ rm -rf "${TMP_DIR}"
 
 # NOTE: Deploy kubernetes using kubeadm. A CNI that supports network policy is
 # required for validation; use calico for simplicity.
-sudo kubeadm init --pod-network-cidr=192.168.0.0/16
+sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --image-repository registry.aliyuncs.com/google_containers
 
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config

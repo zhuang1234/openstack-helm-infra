@@ -30,3 +30,7 @@ Contributing
 
 We welcome contributions. Check out `this <CONTRIBUTING.rst>`_ document if
 you would like to get involved.
+
+Update
+-------------
+更换为 `aliyum` 的 docker kubernetes 源，但其他软件依旧需要使用到代理，尤其是docker 的一些镜像
